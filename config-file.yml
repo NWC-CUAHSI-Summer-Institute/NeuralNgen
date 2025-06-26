@@ -1,0 +1,23 @@
+data_dir: "C:/Users/hdagne1/Box/Dr.Mesfin Research/Summer_Institute_clones/NeuralNgen/"
+forcings:
+  - "aorc_hourly"
+seq_length: 24
+predict_last_n: 1
+train_start_date: "29/09/1993"
+train_end_date: "03/10/2013"
+validation_start_date: "04/10/2013"
+validation_end_date: "04/10/2013"
+target_variables: []
+dynamic_inputs:
+  - "APCP_surface"
+  - "DLWRF_surface"
+  - "DSWRF_surface"
+  - "PRES_surface"
+  - "SPFH_2maboveground"
+  - "TMP_2maboveground"
+  - "UGRD_10maboveground"
+  - "VGRD_10maboveground"
+loss: "mse"
+train_dir: "runs/train"
+model: "lstm"
+run_dir: "runs"
