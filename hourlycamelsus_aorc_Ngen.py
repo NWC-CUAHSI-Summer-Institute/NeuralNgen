@@ -53,7 +53,6 @@ class HourlyCamelsUS(camelsus.CamelsUS):
                  additional_features: list = [],
                  id_to_int: dict = {},
                  scaler: dict = {}):
-        self._netcdf_datasets = {}  # if available, we remember the dataset to load faster
         self._warn_slow_loading = True
         if not any(f.endswith('_hourly') for f in cfg.forcings):
             raise ValueError('Forcings include no hourly forcings set.')
@@ -150,7 +149,7 @@ class HourlyCamelsUS(camelsus.CamelsUS):
         return df
 
     def load_hourly_data(self, basin: str, forcings: str) -> pd.DataFrame:
-        """Load a single set of hourly forcings and discharge. If available, loads from NetCDF, else from csv.
+        """Load a single set of hourly forcings and discharge. Loads from csv.
         
         Parameters
         ----------
@@ -164,25 +163,10 @@ class HourlyCamelsUS(camelsus.CamelsUS):
         pd.DataFrame
             Time-indexed DataFrame with forcings and discharge values for the specified basin.
         """
-        fallback_csv = False
-        try:
-            if forcings not in self._netcdf_datasets.keys():
-                self._netcdf_datasets[forcings] = load_hourly_us_netcdf(self.cfg.data_dir, forcings)
-            df = self._netcdf_datasets[forcings].sel(basin=basin).to_dataframe()
-        except FileNotFoundError:
-            fallback_csv = True
-            if self._warn_slow_loading:
-                LOGGER.warning(
-                    f'## Warning: Hourly {forcings} NetCDF file not found. Falling back to slower csv files.')
-        except KeyError:
-            fallback_csv = True
-            LOGGER.warning(
-                f'## Warning: NetCDF file of {forcings} does not contain data for {basin}. Trying slower csv files.')
-        if fallback_csv:
-            df = load_hourly_us_forcings(self.cfg.data_dir, basin, forcings)
+        df = load_hourly_us_forcings(self.cfg.data_dir, basin, forcings)
 
-            # add discharge
-            df = df.join(load_hourly_us_discharge(self.cfg.data_dir, basin))
+        # add discharge
+        df = df.join(load_hourly_us_discharge(self.cfg.data_dir, basin))
 
         return df
 
