@@ -290,61 +290,6 @@ def load_hourly_us_discharge(data_dir: Path, basin: str) -> pd.DataFrame:
     return df
 
 
-def load_hourly_us_stage(data_dir: Path, basin: str) -> pd.Series:
-    """Load the hourly stage data for a basin of the CAMELS US data set.
-
-    Parameters
-    ----------
-    data_dir : Path
-        Path to the CAMELS US directory. This folder must contain a folder called 'hourly' with a subdirectory 
-        'usgs_stage' which contains the stage files (.csv) for each basin. File names must contain the 8-digit basin id.
-    basin : str
-        8-digit USGS identifier of the basin.
-
-    Returns
-    -------
-    pd.Series
-        Time-index Series of the stage values (m)
-    """
-    stage_path = data_dir / 'hourly' / 'usgs_stage'
-    files = list(stage_path.glob('**/*_utc.csv'))
-    file_path = next((f for f in files if basin in f.stem), None)
-    if not file_path:
-        raise FileNotFoundError(f'No file for Basin {basin} at {stage_path}')
-
-    df = pd.read_csv(file_path,
-                     sep=',',
-                     index_col=['datetime'],
-                     parse_dates=['datetime'],
-                     usecols=['datetime', 'gauge_height_ft'])
-    df = df.resample('h').mean()
-    df["gauge_height_m"] = df["gauge_height_ft"] * 0.3048
-
-    return df["gauge_height_m"]
-
-
-def load_hourly_us_netcdf(data_dir: Path, forcings: str) -> xarray.Dataset:
-    """Load hourly forcing and discharge data from preprocessed netCDF file.
-
-    Parameters
-    ----------
-    data_dir : Path
-        Path to the CAMELS US directory. This folder must contain a folder called 'hourly', containing the netCDF file.
-    forcings : str
-        Name of the forcing product. Must match the ending of the netCDF file. E.g. 'nldas_hourly' for 
-        'usgs-streamflow-nldas_hourly.nc'
-
-    Returns
-    -------
-    xarray.Dataset
-        Dataset containing the combined discharge and discharge data of all basins (as stored in the netCDF)  
-    """
-    netcdf_path = data_dir / 'hourly' / f'usgs-streamflow-{forcings}.nc'
-    if not netcdf_path.is_file():
-        raise FileNotFoundError(f'No NetCDF file for hourly streamflow and {forcings} at {netcdf_path}.')
-
-    return xarray.open_dataset(netcdf_path)
-
 # Main script to load and display data
 if __name__ == "__main__":
     # Define the data directory (parent directory of 'hourly')
