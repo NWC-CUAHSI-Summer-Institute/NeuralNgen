@@ -1,3 +1,9 @@
+# src/neuralngen/dataset/batching.py
+
+from typing import List, Dict, Union
+import numpy as np
+import torch
+
 def collate_fn(
     samples: List[Dict[str, Union[torch.Tensor, np.ndarray, Dict[str, torch.Tensor], str, float]]]
 ) -> Dict[str, Union[torch.Tensor, np.ndarray, Dict[str, torch.Tensor], List[str], List[float]]]:
