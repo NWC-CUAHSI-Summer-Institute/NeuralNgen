@@ -1,15 +1,15 @@
 # src/neuralngen/training/basetrainer.py
 
-import os
 import random
 import time
 from pathlib import Path
-
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from neuralngen.utils.distance import compute_distance_matrix
+from neuralngen.training.loss import ngenLoss
 
 class BaseTrainer:
     def __init__(self, cfg, model, dataset_class):
@@ -47,7 +47,7 @@ class BaseTrainer:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.learning_rate)
 
         # Loss
-        self.criterion = torch.nn.MSELoss()
+        self.criterion = ngenLoss()  # torch.nn.MSELoss()
 
         # Create output directory
         self.run_dir = self._create_run_dir()
@@ -76,11 +76,19 @@ class BaseTrainer:
                 x_s = batch["x_s"].to(self.device)
                 y = batch["y"].to(self.device)
 
+                distance_matrix = compute_distance_matrix(batch["x_info"], normalize=True)
+
                 if step == 0:
                     print("\n========== DEBUG PRINT ==========")
+
                     print(f"x_d.shape = {x_d.shape}")
                     print(f"x_s.shape = {x_s.shape}")
                     print(f"y.shape = {y.shape}")
+
+                    print("\n---batch[x_info]---")
+                    print(batch["x_info"])
+                    print("\n---DISTANCE MATRIX for variogram---")
+                    print(distance_matrix)
 
                     print("\n-- Stats on x_d --")
                     print(f"min={x_d.min().item():.4e} max={x_d.max().item():.4e} mean={x_d.mean().item():.4e}")
@@ -107,7 +115,10 @@ class BaseTrainer:
                     if torch.isnan(y_hat).any():
                         print("!!! y_hat contains NaNs !!!")
 
-                loss = self.criterion(preds["y_hat"], y)
+                loss, loss_components = self.criterion(
+                   prediction={"y_hat": preds["y_hat"]},
+                    data={"y": y, "distance_matrix": distance_matrix}
+                )
 
                 if step == 0:
                     print(f"\nLoss value BEFORE backward: {loss.item()}")
