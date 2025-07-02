@@ -192,3 +192,22 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# macOS system files
+.DS_Store
+
+# General temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Data / model files
+*.npy
+*.npz
+*.pkl
+*.pt
+*.ckpt
+*.h5
+*.csv
+*.json
