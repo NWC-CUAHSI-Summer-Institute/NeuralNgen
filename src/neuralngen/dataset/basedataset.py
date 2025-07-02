@@ -4,107 +4,90 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
+import random
 
 class BaseDataset(Dataset):
     def __init__(self, cfg, period):
         self.cfg = cfg
         self.period = period
 
-        # load basin IDs
+        # load basins
         basin_file = getattr(cfg, f"{period}_basin_file")
         with open(basin_file, 'r') as f:
             self.basins = [line.strip() for line in f.readlines()]
 
-        # load static attributes
+        # load attributes
         static_attr_df = self._load_static_attributes()
 
-        # filter numeric columns once
-        numeric_df = static_attr_df.select_dtypes(include=[np.number])
-
-        # define the attribute first!
         self.static_attributes = {}
+        self.basin_info = {}
 
         for basin in self.basins:
-            if basin not in numeric_df.index:
-                raise RuntimeError(f"Basin {basin} not found in attributes table.")
+            numeric_values = static_attr_df.loc[basin].values.astype(np.float32)
+            self.static_attributes[basin] = numeric_values
 
-            numeric_values = numeric_df.loc[basin].values
-            self.static_attributes[basin] = numeric_values.astype(np.float32)
+            self.basin_info[basin] = {
+                "gauge_id": basin,
+                "gauge_lat": float(static_attr_df.loc[basin, 'gauge_lat']),
+                "gauge_lon": float(static_attr_df.loc[basin, 'gauge_lon']),
+            }
 
-        # load timeseries data
+        # load all time series
         self.dynamic_inputs = {}
         self.targets = {}
 
         for basin in self.basins:
             df = self._load_basin_data(basin)
 
-            # slice to desired period
-            start_date = pd.to_datetime(getattr(cfg, f"{period}_start_date"), dayfirst=True)
-            end_date = pd.to_datetime(getattr(cfg, f"{period}_end_date"), dayfirst=True)
+            start_date = pd.to_datetime(getattr(cfg, f"{period}_start_date"))
+            end_date = pd.to_datetime(getattr(cfg, f"{period}_end_date"))
 
             df = df.loc[start_date:end_date]
 
-            # separate inputs and targets
             self.dynamic_inputs[basin] = df[cfg.dynamic_inputs].values.astype(np.float32)
             self.targets[basin] = df[cfg.target_variables].values.astype(np.float32)
 
-            # optionally normalize here if desired
+        # --------------------------------
+        # Build sample list for all windows
+        # --------------------------------
+        self.samples = []
+        window_size = cfg.batch_timesteps
 
-        self.basin_ids = list(self.dynamic_inputs.keys())
+        for basin in self.basins:
+            dyn = self.dynamic_inputs[basin]
+            if dyn.shape[0] < window_size:
+                continue
+
+            n_windows = dyn.shape[0] - window_size + 1
+
+            for start_idx in range(n_windows):
+                self.samples.append((basin, start_idx))
+
+        random.shuffle(self.samples)
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        basin, start_idx = self.samples[idx]
+
+        end_idx = start_idx + self.cfg.batch_timesteps
+
+        x_d_window = self.dynamic_inputs[basin][start_idx:end_idx, :]
+        y_window = self.targets[basin][start_idx:end_idx, :]
+
+        x_s = self.static_attributes[basin]
+        x_info = self.basin_info[basin]
+
+        return {
+            "x_d": torch.tensor(x_d_window, dtype=torch.float32),
+            "x_s": torch.tensor(x_s, dtype=torch.float32),
+            "y": torch.tensor(y_window, dtype=torch.float32),
+            "x_info": x_info,
+        }
 
     def _load_static_attributes(self):
-        # same as camelsus.load_camels_us_attributes(), simplified
-        # Load and return a DataFrame indexed by basin IDs
-        # For now, e.g.:
-        #   index = basin ID
-        #   columns = static attributes
         raise NotImplementedError()
 
     def _load_basin_data(self, basin):
-        # load hourly CAMELS data
         raise NotImplementedError()
-
-    def __len__(self):
-        # each item returns a full batch!
-        return 1000000   # arbitrary large number, sampling randomly each time
-
-    def __getitem__(self, idx):
-        cfg = self.cfg
-        batch_sites = cfg.batch_sites
-        batch_timesteps = cfg.batch_timesteps
-
-        chosen_basins = np.random.choice(self.basin_ids, size=batch_sites, replace=True)
-
-        batch_x_d = []
-        batch_x_s = []
-        batch_y = []
-
-        for basin in chosen_basins:
-            dyn = self.dynamic_inputs[basin]
-            y = self.targets[basin]
-
-            if dyn.shape[0] < batch_timesteps:
-                raise RuntimeError(f"Basin {basin} has fewer timesteps than batch_timesteps.")
-
-            # random window
-            start_idx = np.random.randint(0, dyn.shape[0] - batch_timesteps + 1)
-            end_idx = start_idx + batch_timesteps
-
-            x_d_window = dyn[start_idx:end_idx, :]
-            y_window = y[start_idx:end_idx, :]
-
-            x_s = self.static_attributes[basin]
-
-            batch_x_d.append(torch.tensor(x_d_window))
-            batch_y.append(torch.tensor(y_window))
-            batch_x_s.append(torch.tensor(x_s))
-
-        batch_x_d = torch.stack(batch_x_d, dim=0)
-        batch_y = torch.stack(batch_y, dim=0)
-        batch_x_s = torch.stack(batch_x_s, dim=0)
-
-        return {
-            "x_d": batch_x_d,
-            "x_s": batch_x_s,
-            "y": batch_y,
-        }

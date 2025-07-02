@@ -56,29 +56,19 @@ class HourlyCamelsDataset(CamelsUS):
         # 1. Load hourly forcing data
         # -------------------------------
         dfs = []
-        for forcing_choice in self.cfg.forcings:
-            hourly_dir = Path(self.cfg.data_dir) / "hourly" / forcing_choice
 
-            matching_files = list(hourly_dir.glob(f"{basin}_*.csv"))
-            if not matching_files:
-                raise FileNotFoundError(
-                    f"No hourly CSV found for basin {basin} in {hourly_dir}."
-                )
+        hourly_dir = Path(self.cfg.data_dir) / "hourly" / self.cfg.forcings
 
-            fpath = matching_files[0]
-            forcing_df = pd.read_csv(fpath, index_col=0, parse_dates=True)
+        matching_files = list(hourly_dir.glob(f"{basin}_*.csv"))
+        if not matching_files:
+            raise FileNotFoundError(
+                f"No hourly CSV found for basin {basin} in {hourly_dir}."
+            )
 
-            # If multiple forcings, rename columns to keep them separate
-            if len(self.cfg.forcings) > 1:
-                forcing_df = forcing_df.rename(
-                    columns={
-                        col: f"{col}_{forcing_choice}"
-                        for col in forcing_df.columns
-                        if 'qobs' not in col.lower()
-                    }
-                )
-            
-            dfs.append(forcing_df)
+        fpath = matching_files[0]
+        forcing_df = pd.read_csv(fpath, index_col=0, parse_dates=True)
+
+        dfs.append(forcing_df)
 
         # Concatenate all loaded forcings side by side
         forcing_df = pd.concat(dfs, axis=1)

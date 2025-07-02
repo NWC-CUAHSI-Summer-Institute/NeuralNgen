@@ -1,36 +1,30 @@
 experiment_name: nh_AORC_hourly
 seed: 101
-
-# Data splits
 train_basin_file: /Users/jmframe/CAMELS_data_sample/train_basins.txt
 validation_basin_file: /Users/jmframe/CAMELS_data_sample/valid_basins.txt
 test_basin_file: /Users/jmframe/CAMELS_data_sample/test_basins.txt
-
 train_start_date: "01/10/1998"
 train_end_date: "30/09/1999"
 validation_start_date: "01/10/2003"
 validation_end_date: "30/09/2004"
 test_start_date: "01/10/2005"
 test_end_date: "30/09/2006"
-
+clip_gradient_norm: 1
 device: mps
-
-batch_sites: 32
-batch_timesteps: 120
-
-dataset: hourly_camels_us
+epochs: 2
+hidden_size: 64
+learning_rate: 0.001
+batch_sites: 5
+batch_timesteps: 256
+output_dir: ./runs
+#dataset: hourly_camels_us
 data_dir: /Users/jmframe/CAMELS_data_sample/
-
-forcings:
-  - aorc_hourly
-
+forcings: aorc_hourly
 dynamic_inputs:
 - APCP_surface
 - TMP_2maboveground
-
 static_attributes:
   - elev_mean
   - slope_mean
-
 target_variables:
   - QObs(mm/h)

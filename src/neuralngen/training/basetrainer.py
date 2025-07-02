@@ -1,3 +1,5 @@
+# src/neuralngen/training/basetrainer.py
+
 import os
 import random
 import time
@@ -32,11 +34,13 @@ class BaseTrainer:
         self._set_seed()
 
         # Prepare data
-        self.train_dataset = dataset_class(cfg, period="train")
+        self.train_dataset = dataset_class(cfg, is_train=True, period="train")
         self.train_loader = DataLoader(
             self.train_dataset,
-            batch_size=None,  # each __getitem__ returns a full batch already
-            num_workers=cfg.num_workers
+            batch_size=self.cfg.batch_sites,
+            shuffle=True,
+            num_workers=0,
+            drop_last=True,
         )
 
         # Optimizer
@@ -65,17 +69,15 @@ class BaseTrainer:
             self.model.train()
             epoch_losses = []
 
-            pbar = tqdm(self.train_loader, total=self.cfg.steps_per_epoch)
-            for step, batch in enumerate(pbar, start=1):
-                if step > self.cfg.steps_per_epoch:
-                    break
+            pbar = tqdm(self.train_loader)
+            for batch in pbar:
 
                 x_d = batch["x_d"].to(self.device)
                 x_s = batch["x_s"].to(self.device)
                 y = batch["y"].to(self.device)
 
                 preds = self.model(x_d, x_s)
-                loss = self.criterion(preds, y)
+                loss = self.criterion(preds["y_hat"], y)
 
                 self.optimizer.zero_grad()
                 loss.backward()

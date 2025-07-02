@@ -1,3 +1,5 @@
+# src/neuralngen/models/ngenlstm.py
+
 from typing import Dict, Optional
 
 import torch
