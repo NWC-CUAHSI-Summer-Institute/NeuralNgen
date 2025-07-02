@@ -23,13 +23,29 @@ class BaseDataset(Dataset):
         self.basin_info = {}
 
         for basin in self.basins:
-            numeric_values = static_attr_df.loc[basin].values.astype(np.float32)
+            # ----
+            # Build static feature vector (x_s)
+            # ----
+            attr_names = self.cfg.static_attributes
+
+            # Check attributes exist
+            for attr in attr_names:
+                if attr not in static_attr_df.columns:
+                    raise ValueError(f"Static attribute {attr} missing from attribute file.")
+
+            numeric_values = static_attr_df.loc[basin, attr_names].values.astype(np.float32)
             self.static_attributes[basin] = numeric_values
+
+            # ----
+            # Build basin_info dictionary
+            # ----
+            lat = static_attr_df.loc[basin, 'gauge_lat'] if 'gauge_lat' in static_attr_df.columns else np.nan
+            lon = static_attr_df.loc[basin, 'gauge_lon'] if 'gauge_lon' in static_attr_df.columns else np.nan
 
             self.basin_info[basin] = {
                 "gauge_id": basin,
-                "gauge_lat": float(static_attr_df.loc[basin, 'gauge_lat']),
-                "gauge_lon": float(static_attr_df.loc[basin, 'gauge_lon']),
+                "gauge_lat": float(lat),
+                "gauge_lon": float(lon),
             }
 
         # load all time series
@@ -43,6 +59,9 @@ class BaseDataset(Dataset):
             end_date = pd.to_datetime(getattr(cfg, f"{period}_end_date"))
 
             df = df.loc[start_date:end_date]
+
+            # drop rows with NaNs in dynamic inputs or targets
+            df = df.dropna(subset=cfg.dynamic_inputs + cfg.target_variables)
 
             self.dynamic_inputs[basin] = df[cfg.dynamic_inputs].values.astype(np.float32)
             self.targets[basin] = df[cfg.target_variables].values.astype(np.float32)

@@ -70,22 +70,72 @@ class BaseTrainer:
             epoch_losses = []
 
             pbar = tqdm(self.train_loader)
-            for batch in pbar:
+            for step, batch in enumerate(pbar):
 
                 x_d = batch["x_d"].to(self.device)
                 x_s = batch["x_s"].to(self.device)
                 y = batch["y"].to(self.device)
 
+                if step == 0:
+                    print("\n========== DEBUG PRINT ==========")
+                    print(f"x_d.shape = {x_d.shape}")
+                    print(f"x_s.shape = {x_s.shape}")
+                    print(f"y.shape = {y.shape}")
+
+                    print("\n-- Stats on x_d --")
+                    print(f"min={x_d.min().item():.4e} max={x_d.max().item():.4e} mean={x_d.mean().item():.4e}")
+                    print("\nSample x_d slice:", x_d[0, :5, :])
+
+                    print("\n-- Stats on x_s --")
+                    print(f"min={x_s.min().item():.4e} max={x_s.max().item():.4e} mean={x_s.mean().item():.4e}")
+                    print("\nSample x_s slice:", x_s[0, :])
+
+                    print("\n-- Stats on y --")
+                    print(f"min={y.min().item():.4e} max={y.max().item():.4e} mean={y.mean().item():.4e}")
+                    print("\nSample y slice:", y[0, :5, :])
+
                 preds = self.model(x_d, x_s)
+
+                if step == 0:
+                    y_hat = preds["y_hat"]
+                    print("\n-- Stats on y_hat --")
+                    print(f"y_hat.shape = {y_hat.shape}")
+                    print(f"min={y_hat.min().item():.4e} max={y_hat.max().item():.4e} mean={y_hat.mean().item():.4e}")
+                    print("\nSample y_hat slice:", y_hat[0, :5, :])
+
+                    # Check for NaNs
+                    if torch.isnan(y_hat).any():
+                        print("!!! y_hat contains NaNs !!!")
+
                 loss = self.criterion(preds["y_hat"], y)
+
+                if step == 0:
+                    print(f"\nLoss value BEFORE backward: {loss.item()}")
+
+                if torch.isnan(loss):
+                    print("!!! LOSS is NaN !!!")
+                    # Optionally stop training to debug
+                    raise RuntimeError("NaN loss detected")
 
                 self.optimizer.zero_grad()
                 loss.backward()
+
+                if step == 0:
+                    # Print gradient norms
+                    for name, param in self.model.named_parameters():
+                        if param.grad is not None:
+                            grad_norm = param.grad.norm().item()
+                            print(f"Grad norm for {name}: {grad_norm:.4e}")
+
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.clip_gradient_norm)
                 self.optimizer.step()
 
                 epoch_losses.append(loss.item())
                 pbar.set_postfix({"loss": loss.item()})
+
+                # Only run debug prints for the first step
+                if step == 0:
+                    print("========== END DEBUG PRINT ==========\n")
 
             mean_epoch_loss = np.mean(epoch_losses)
             print(f"Epoch {epoch} finished. Mean loss: {mean_epoch_loss:.4f}")
