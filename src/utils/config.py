@@ -280,9 +280,6 @@ class Config(object):
     def base_run_dir(self, folder: Path):
         self._cfg["base_run_dir"] = folder
 
-    @property
-    def batch_size(self) -> int:
-        return self._get_value_verbose("batch_size")
 
     @property
     def bidirectional_stacked_forecast_lstm(self) -> bool:
@@ -368,26 +365,9 @@ class Config(object):
             return dynamic_inputs
 
     @property
-    def dynamics_embedding(self) -> dict:
-        embedding_spec = self._cfg.get("dynamics_embedding", None)
-
-        if embedding_spec is None:
-            return None
-        return self._get_embedding_spec(embedding_spec)
-
-    @property
     def epochs(self) -> int:
         return self._get_value_verbose("epochs")
 
-    @property
-    def evolving_attributes(self) -> List[str]:
-        if "evolving_attributes" in self._cfg.keys():
-            return self._as_default_list(self._cfg["evolving_attributes"])
-        elif "static_inputs" in self._cfg.keys():
-            warnings.warn("'static_inputs' will be deprecated. Use 'evolving_attributes' in the future", FutureWarning)
-            return self._as_default_list(self._cfg["static_inputs"])
-        else:
-            return []
 
     @property
     def experiment_name(self) -> str:
@@ -408,17 +388,6 @@ class Config(object):
         else:
             raise ValueError(f"Unknown data type {type(finetune_modules)} for 'finetune_modules' argument.")
 
-    @property
-    def forecast_network(self) -> dict:
-        embedding_spec = self._cfg.get("forecast_network", None)
-
-        if embedding_spec is None:
-            return None
-        return self._get_embedding_spec(embedding_spec)
-
-    @property
-    def forecast_hidden_size(self) -> int:
-        return self._cfg.get("forecast_hidden_size", self.hidden_size)
 
     @property
     def forecast_inputs(self) -> list[str] | list[list[str]]:
@@ -463,25 +432,13 @@ class Config(object):
         else:
             return self._get_value_verbose("head")
 
-    @property
-    def hindcast_inputs(self) -> list[str] | list[list[str]]:
-        return self._cfg.get("hindcast_inputs", [])
 
-    @property
-    def hindcast_inputs_flattened(self) -> list[str]:
-        hindcast_inputs = self.hindcast_inputs
-        if hindcast_inputs and isinstance(hindcast_inputs[0], list):
-            return list(itertools.chain.from_iterable(hindcast_inputs))
-        else:
-            return hindcast_inputs
 
     @property
     def hidden_size(self) -> Union[int, Dict[str, int]]:
         return self._get_value_verbose("hidden_size")
 
-    @property
-    def hindcast_hidden_size(self) -> Union[int, Dict[str, int]]:
-        return self._cfg.get("hindcast_hidden_size", self.hidden_size)
+
 
     @property
     def hydroatlas_attributes(self) -> List[str]:
@@ -590,9 +547,7 @@ class Config(object):
     def model(self) -> str:
         return self._get_value_verbose("model")
 
-    @property
-    def conceptual_model(self) -> str:
-        return self._cfg.get("conceptual_model", "SHM")
+
 
     @property
     def n_distributions(self) -> int:
@@ -621,9 +576,7 @@ class Config(object):
     def nan_step_probability(self) -> float:
         return self._cfg.get("nan_step_probability", 0.0)
 
-    @property
-    def nan_handling_pos_encoding_size(self) -> int:
-        return self._cfg.get("nan_handling_pos_encoding_size", 0)
+
 
     @property
     def negative_sample_handling(self) -> str:
@@ -633,9 +586,7 @@ class Config(object):
     def negative_sample_max_retries(self) -> int:
         return self._get_value_verbose("negative_sample_max_retries")
 
-    @property
-    def no_loss_frequencies(self) -> list:
-        return self._as_default_list(self._cfg.get("no_loss_frequencies", []))
+
 
     @property
     def num_workers(self) -> int:
@@ -673,9 +624,7 @@ class Config(object):
     def output_dropout(self) -> float:
         return self._cfg.get("output_dropout", 0.0)
 
-    @property
-    def per_basin_test_periods_file(self) -> Path:
-        return self._cfg.get("per_basin_test_periods_file", None)
+
 
     @property
     def per_basin_train_periods_file(self) -> Path:
@@ -729,29 +678,7 @@ class Config(object):
     def seed(self) -> int:
         return self._cfg.get("seed", None)
 
-    @property
-    def transformer_nlayers(self) -> int:
-        return self._get_value_verbose("transformer_nlayers")
 
-    @property
-    def transformer_positional_encoding_type(self) -> str:
-        return self._get_value_verbose("transformer_positional_encoding_type")
-
-    @property
-    def transformer_dim_feedforward(self) -> int:
-        return self._get_value_verbose("transformer_dim_feedforward")
-
-    @property
-    def transformer_positional_dropout(self) -> float:
-        return self._get_value_verbose("transformer_positional_dropout")
-
-    @property
-    def transformer_dropout(self) -> float:
-        return self._get_value_verbose("transformer_dropout")
-
-    @property
-    def transformer_nheads(self) -> int:
-        return self._get_value_verbose("transformer_nheads")
 
     @seed.setter
     def seed(self, seed: int):
@@ -764,9 +691,7 @@ class Config(object):
     def seq_length(self) -> Union[int, Dict[str, int]]:
         return self._get_value_verbose("seq_length")
 
-    @property
-    def shared_mtslstm(self) -> bool:
-        return self._cfg.get("shared_mtslstm", False)
+
 
     @property
     def static_attributes(self) -> List[str]:
@@ -779,13 +704,6 @@ class Config(object):
         else:
             return []
 
-    @property
-    def statics_embedding(self) -> dict:
-        embedding_spec = self._cfg.get("statics_embedding", None)
-
-        if embedding_spec is None:
-            return None
-        return self._get_embedding_spec(embedding_spec)
 
     @property
     def target_loss_weights(self) -> List[float]:
@@ -816,17 +734,7 @@ class Config(object):
     def tau_up(self) -> float:
         return self._get_value_verbose("tau_up")
 
-    @property
-    def test_basin_file(self) -> Path:
-        return self._get_value_verbose("test_basin_file")
 
-    @property
-    def test_end_date(self) -> pd.Timestamp:
-        return self._get_value_verbose("test_end_date")
-
-    @property
-    def test_start_date(self) -> pd.Timestamp:
-        return self._get_value_verbose("test_start_date")
 
     @property
     def timestep_counter(self) -> bool:
@@ -864,13 +772,8 @@ class Config(object):
     def umal_extend_batch(self) -> bool:
         return self._cfg.get("umal_extend_batch", False)
 
-    @property
-    def use_basin_id_encoding(self) -> bool:
-        return self._cfg.get("use_basin_id_encoding", False)
 
-    @property
-    def use_frequencies(self) -> List[str]:
-        return self._as_default_list(self._cfg.get("use_frequencies", []))
+
 
     @property
     def validate_every(self) -> int:
@@ -923,6 +826,7 @@ class Config(object):
     @property
     def temporal_length(self):
         return self._cfg.get('temporal_length', None)
+    
     def _get_embedding_spec(self, embedding_spec: dict) -> dict:
         if isinstance(embedding_spec, bool) and embedding_spec:  #
             msg = [
@@ -944,7 +848,6 @@ class Config(object):
             'activation': embedding_spec.get('activation', 'tanh'),
             'dropout': embedding_spec.get('dropout', 0.0)
         }
-
 
 def create_random_name():
     adjectives = ('white', 'black', 'green', 'golden', 'modern', 'lazy', 'great', 'meandering', 'nervous', 'demanding',
