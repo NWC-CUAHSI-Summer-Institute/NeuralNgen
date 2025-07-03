@@ -14,7 +14,7 @@ device: mps
 epochs: 2
 hidden_size: 64
 learning_rate: 0.00000001
-batch_sites: 5
+batch_sites: 15
 batch_timesteps: 256
 output_dir: ./runs
 #dataset: hourly_camels_us
