@@ -70,14 +70,14 @@ class BaseDataset(Dataset):
         # Build sample list for all windows
         # --------------------------------
         self.samples = []
-        window_size = cfg.batch_timesteps
+        self.window_size = cfg.batch_timesteps + cfg.sequence_length
 
         for basin in self.basins:
             dyn = self.dynamic_inputs[basin]
-            if dyn.shape[0] < window_size:
+            if dyn.shape[0] < self.window_size:
                 continue
 
-            n_windows = dyn.shape[0] - window_size + 1
+            n_windows = dyn.shape[0] - self.window_size + 1
 
             for start_idx in range(n_windows):
                 self.samples.append((basin, start_idx))
@@ -90,7 +90,7 @@ class BaseDataset(Dataset):
     def __getitem__(self, idx):
         basin, start_idx = self.samples[idx]
 
-        end_idx = start_idx + self.cfg.batch_timesteps
+        end_idx = start_idx + self.window_size
 
         x_d_window = self.dynamic_inputs[basin][start_idx:end_idx, :]
         y_window = self.targets[basin][start_idx:end_idx, :]

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+from neuralngen.validate.epoch_validation import validate_epoch
 from neuralngen.utils.distance import compute_distance_matrix
 from neuralngen.training.loss import ngenLoss
 
@@ -105,19 +105,26 @@ class BaseTrainer:
                 preds = self.model(x_d, x_s)
 
                 if step == 0:
-                    y_hat = preds["y_hat"]
-                    print("\n-- Stats on y_hat --")
-                    print(f"y_hat.shape = {y_hat.shape}")
-                    print(f"min={y_hat.min().item():.4e} max={y_hat.max().item():.4e} mean={y_hat.mean().item():.4e}")
-                    print("\nSample y_hat slice:", y_hat[0, :5, :])
+                    # full sequence for inspection
+                    y_hat_full = preds["y_hat"]
+                    print("\n-- Stats on y_hat (full sequence) --")
+                    print(f"y_hat.shape = {y_hat_full.shape}")
+                    print(f"min={y_hat_full.min().item():.4e} max={y_hat_full.max().item():.4e} mean={y_hat_full.mean().item():.4e}")
+                    print("\nSample y_hat slice:", y_hat_full[0, :5, :])
 
-                    # Check for NaNs
-                    if torch.isnan(y_hat).any():
+                    if torch.isnan(y_hat_full).any():
                         print("!!! y_hat contains NaNs !!!")
 
+                # Warmup slicing
+                sequence_length = self.cfg.sequence_length
+
+                # keep only the portion after warm-up
+                y_hat = preds["y_hat"][:, sequence_length:, :]
+                y_true = y[:, sequence_length:, :]
+
                 loss, loss_components = self.criterion(
-                   prediction={"y_hat": preds["y_hat"]},
-                    data={"y": y, "distance_matrix": distance_matrix}
+                    prediction={"y_hat": y_hat},
+                    data={"y": y_true, "distance_matrix": distance_matrix}
                 )
 
                 if step == 0:
@@ -152,6 +159,8 @@ class BaseTrainer:
             print(f"Epoch {epoch} finished. Mean loss: {mean_epoch_loss:.4f}")
 
             self._save_model(epoch)
+
+            validate_epoch(self.model, self.cfg, device=self.device)
 
     def _save_model(self, epoch):
         path = self.run_dir / f"model_epoch{epoch:03d}.pt"
