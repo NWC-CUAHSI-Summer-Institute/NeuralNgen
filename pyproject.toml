@@ -1,5 +1,5 @@
 [project]
-name = "ngen_weights"
+name = "neuralngen"
 version = "0.1.0"
 description = "A framework for training deep learning and physics-informed learning modules for the Nextgen framework"
 authors = [
@@ -23,12 +23,15 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NWC-CUAHSI-Summer-Institute/ngen_weights"
-Repository = "https://github.com/NWC-CUAHSI-Summer-Institute/ngen_weights"
+Homepage = "https://github.com/NWC-CUAHSI-Summer-Institute/neuralngen"
+Repository = "https://github.com/NWC-CUAHSI-Summer-Institute/neuralngen"
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["ngen_weights"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
