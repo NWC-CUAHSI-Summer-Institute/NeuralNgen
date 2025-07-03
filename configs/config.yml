@@ -10,10 +10,11 @@ validation_end_date: "30/09/2004"
 test_start_date: "01/10/2005"
 test_end_date: "30/09/2006"
 clip_gradient_norm: 1
+sequence_length: 256
 device: mps
-epochs: 2
-hidden_size: 64
-learning_rate: 0.00000001
+epochs: 1
+hidden_size: 256
+learning_rate: 0.01
 batch_sites: 15
 batch_timesteps: 256
 output_dir: ./runs
