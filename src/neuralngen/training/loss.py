@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import random
 
 class ngenLoss(nn.Module):
     """
@@ -91,16 +91,16 @@ class ngenLoss(nn.Module):
 
         Expects y_hat and y of shape [B, T, D=1]
         """
-
-        # Collapse time dimension → [B, D]
-        y_hat_flat = y_hat.mean(dim=1)  # mean over time
-        y_flat = y.mean(dim=1)
+        method = "quantile"
+        y_hat_flat = self.var_hyd_char(y_hat, method=method, 
+                                        random_quantile=True).squeeze(-1)
+        y_flat = self.var_hyd_char(y, method=method, 
+                                      random_quantile=True).squeeze(-1)
 
         # Compute pairwise |yi - yj|^v
         diff_obs = torch.abs(y_flat[:, None] - y_flat[None, :]) ** self.v_order
         diff_pred = torch.abs(y_hat_flat[:, None] - y_hat_flat[None, :]) ** self.v_order
 
-        # Compute squared error of differences
         loss_matrix = (diff_obs - diff_pred) ** 2
 
         if self.distance_matrix is not None:
@@ -140,3 +140,56 @@ class ngenLoss(nn.Module):
         fdc_divergence = torch.clamp(fdc_divergence, min=0.0)
 
         return fdc_divergence
+        
+    def var_hyd_char(
+        ts: torch.Tensor, 
+        method: str = "mean", 
+        quantile: float = 0.25,
+        random_quantile: bool = False,
+        quantile_bounds: tuple = (0.05, 0.95)
+    ):
+        """
+        Compute a single hydrograph characteristic from time series for each basin.
+
+        Parameters
+        ----------
+        ts : torch.Tensor
+            Time series, shape [B, T, D]
+        method : str
+            Aggregation method. Options:
+                - "mean"
+                - "median"
+                - "std"
+                - "quantile"
+        quantile : float
+            If method == "quantile", the quantile level (0..1).
+        random_quantile : bool
+            Whether to randomly choose a quantile between quantile_bounds.
+        quantile_bounds : tuple(float, float)
+            Lower and upper bounds for random quantile.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape [B, D]
+        """
+
+        if method == "mean":
+            return ts.mean(dim=1)
+
+        elif method == "median":
+            return ts.median(dim=1).values
+
+        elif method == "std":
+            return ts.std(dim=1)
+
+        elif method == "quantile":
+            if random_quantile:
+                quantile = random.uniform(*quantile_bounds)
+            sorted_ts, _ = ts.sort(dim=1, descending=True)
+            index = int(quantile * ts.shape[1])
+            index = max(0, min(index, ts.shape[1] - 1))
+            return sorted_ts[:, index, :]
+        
+        else:
+            raise ValueError(f"Unknown method for hydrograph characteristic: {method}")
