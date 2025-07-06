@@ -47,7 +47,7 @@ class BaseTrainer:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.learning_rate)
 
         # Loss
-        self.criterion = ngenLoss()  # torch.nn.MSELoss()
+        self.criterion = ngenLoss(self.cfg)  # torch.nn.MSELoss()
 
         # Create output directory
         self.run_dir = self._create_run_dir()
