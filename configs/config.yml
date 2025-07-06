@@ -17,6 +17,10 @@ hidden_size: 256
 learning_rate: 0.01
 batch_sites: 15
 batch_timesteps: 256
+variogram_weight: 0
+fdc_weight: 0
+residual_weight: 1
+residual_loss: "nse"
 output_dir: ./runs
 #dataset: hourly_camels_us
 data_dir: /Users/jmframe/CAMELS_data_sample/
