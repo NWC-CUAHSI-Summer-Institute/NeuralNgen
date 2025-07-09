@@ -123,19 +123,20 @@ class ngenLoss(nn.Module):
         elif self.residual_loss == "rmse":
             loss_value = torch.sqrt(F.mse_loss(y_hat_flat, y_flat))
 
-        elif self.residual_loss == "nse":
-            # Nash–Sutcliffe efficiency: 1 - (SSE / variance of obs)
+        elif self.residual_loss == "nse":            
+            # Nash–Sutcliffe efficiency with small eps to avoid division by zero
+            # Flatten only valid entries
             residuals = y_flat - y_hat_flat
             sse = torch.sum(residuals ** 2)
             variance = torch.var(y_flat, unbiased=False)
-            if variance > 0:
-                nse = 1 - (sse / (variance * y_flat.numel()))
-                # Convert to a loss: lower NSE → higher loss
-                # Clamp to avoid negative loss values
-                loss_value = torch.clamp(1.0 - nse, min=0.0)
-            else:
-                # No variability in obs → no skill, assign max loss
-                loss_value = torch.tensor(1.0, device=y.device)
+
+            # add tiny epsilon so we never divide by zero
+            eps = 1e-6
+            denom = variance * y_flat.numel() + eps
+
+            nse = 1 - (sse / denom)
+            # Convert to a loss: lower NSE → higher loss, clamp at 0
+            loss_value = torch.clamp(1.0 - nse, min=0.0)
 
         else:
             raise ValueError(f"Unknown residual loss type: {self.residualloss}")
