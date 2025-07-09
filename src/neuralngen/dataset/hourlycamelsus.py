@@ -31,6 +31,8 @@ class HourlyCamelsDataset(CamelsUS):
         additional_features=[],
         id_to_int={},
         scaler={},
+        run_dir=None,
+        do_load_scalers=True,
     ):
         super().__init__(
             cfg=cfg,
@@ -40,6 +42,8 @@ class HourlyCamelsDataset(CamelsUS):
             additional_features=additional_features,
             id_to_int=id_to_int,
             scaler=scaler,
+            run_dir=run_dir,
+            do_load_scalers=do_load_scalers,
         )
 
     def _load_basin_data(self, basin: str) -> pd.DataFrame:
@@ -55,10 +59,7 @@ class HourlyCamelsDataset(CamelsUS):
         # -------------------------------
         # 1. Load hourly forcing data
         # -------------------------------
-        dfs = []
-
         hourly_dir = Path(self.cfg.data_dir) / "hourly" / self.cfg.forcings
-
         matching_files = list(hourly_dir.glob(f"{basin}_*.csv"))
         if not matching_files:
             raise FileNotFoundError(
@@ -67,11 +68,6 @@ class HourlyCamelsDataset(CamelsUS):
 
         fpath = matching_files[0]
         forcing_df = pd.read_csv(fpath, index_col=0, parse_dates=True)
-
-        dfs.append(forcing_df)
-
-        # Concatenate all loaded forcings side by side
-        forcing_df = pd.concat(dfs, axis=1)
 
         # -------------------------------
         # 2. Load hourly discharge
@@ -86,9 +82,17 @@ class HourlyCamelsDataset(CamelsUS):
         # Replace negative QObs values with NaN
         qobs_cols = [col for col in df.columns if "qobs" in col.lower()]
         for col in qobs_cols:
-            df.loc[df[col] < 0, col] = np.nan
+            num_neg = (df[col] < -1).sum()
+            if num_neg > 0:
+                print(f"[WARNING] {num_neg} negative values in {col} before replacement.")
+            df.loc[df[col] < -1, col] = np.nan
 
-        # Check that all required columns are present
+        # Check again after replacement
+        for col in qobs_cols:
+            if (df[col] < -1).any():
+                print(f"[ERROR] Negative values remain in {col} even after replacement.")
+
+        # Check for missing required columns
         required_cols = self.cfg.dynamic_inputs + self.cfg.target_variables
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
@@ -117,4 +121,5 @@ def load_hourly_us_discharge(data_dir: Path, basin: str) -> pd.DataFrame:
         )
 
     df = pd.read_csv(file_path, index_col=['date'], parse_dates=['date'])
+    df = df[["QObs(mm/h)"]]
     return df
