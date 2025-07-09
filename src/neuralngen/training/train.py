@@ -22,9 +22,10 @@ def main():
     cfg = Config(Path(args.config))
 
     # Initialize dataset just once to get data shapes
-    dataset = HourlyCamelsDataset(cfg, is_train=True, period="train")
-    batch = dataset[0]
+    dataset = HourlyCamelsDataset(cfg, is_train=True, period="train", do_load_scalers=False)
 
+    # Sample batch
+    batch = dataset[0]
     x_d = batch["x_d"]           # [B, T, Din]
     x_s = batch["x_s"]           # [B, S]
     x_info = batch["x_info"]

@@ -56,8 +56,8 @@ def compute_distance_matrix(x_info, normalize=False):
         Distance matrix of shape (n_sites, n_sites), dtype=float32
     """
     # Convert lat/lon to numpy arrays
-    lats = x_info["gauge_lat"].cpu().numpy()
-    lons = x_info["gauge_lon"].cpu().numpy()
+    lats = np.array([site["gauge_lat"] for site in x_info])
+    lons = np.array([site["gauge_lon"] for site in x_info])
 
     n_sites = len(lats)
 
