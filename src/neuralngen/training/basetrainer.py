@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 import numpy as np
 import torch
-import torch.nn as nn
 from tqdm import tqdm
 from neuralngen.validate.epoch_validation import validate_epoch
 from neuralngen.utils.distance import compute_distance_matrix
