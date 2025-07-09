@@ -17,17 +17,27 @@ class CamelsUS(BaseDataset):
 
     def __init__(
         self,
-        cfg: Config,
+        cfg,
         is_train: bool,
         period: str,
         basin: str = None,
-        additional_features: List[Dict[str, pd.DataFrame]] = [],
-        id_to_int: Dict[str, int] = {},
-        scaler: Dict[str, Union[pd.Series, float]] = {},
+        additional_features=[],
+        id_to_int={},
+        scaler={},
+        run_dir=None,
+        do_load_scalers=True,
     ):
+        self.is_train = is_train
+        self.basin = basin
+        self.additional_features = additional_features
+        self.id_to_int = id_to_int
+        self.scaler = scaler
+
         super().__init__(
             cfg=cfg,
-            period=period
+            period=period,
+            run_dir=run_dir,
+            do_load_scalers=do_load_scalers,
         )
 
     def _load_basin_data(self, basin: str) -> pd.DataFrame:
@@ -89,7 +99,7 @@ def load_camels_us_attributes(
         df = df.loc[basins]
 
     # Always keep lat/lon separately
-    required_cols = ['gauge_lat', 'gauge_lon']
+    required_cols = ['gauge_lat', 'gauge_lon', 'area_gages2']
     cols_to_keep = required_cols.copy()
 
     # Only keep attributes listed in config

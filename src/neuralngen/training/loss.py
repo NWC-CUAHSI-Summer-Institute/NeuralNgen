@@ -1,14 +1,12 @@
-# src/neuralngen/training/loss.py
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import random
 
 class ngenLoss(nn.Module):
     """
     Combined loss function:
-    - MSE or RMSE
+    - Residual loss: MSE, RMSE, or NSE
     - Variogram loss (spatial)
     - FDC divergence loss
 
@@ -22,21 +20,28 @@ class ngenLoss(nn.Module):
         Weight for the FDC loss.
     v_order : int
         Power for the variogram (default=2 for semi-variance).
+    residualloss : str
+        Type of residual loss. One of {"mse", "rmse", "nse"}.
     """
 
     def __init__(
         self,
+        cfg,
         distance_matrix=None,
-        variogram_weight=0.0,
-        fdc_weight=0.0,
-        v_order=2
+        v_order=2,
     ):
         super().__init__()
 
         self.distance_matrix = distance_matrix
-        self.variogram_weight = variogram_weight
-        self.fdc_weight = fdc_weight
+        self.variogram_weight = cfg.variogram_weight
+        self.fdc_weight = cfg.fdc_weight
+        self.residual_loss = cfg.residual_loss
+        self.residual_weight = cfg.residual_weight
         self.v_order = v_order
+
+        assert self.residual_loss.lower() in ["mse", "rmse", "nse"], \
+            f"Invalid residualloss: {self.residual_loss}"
+        self.residual_loss = self.residual_loss.lower()
 
     def forward(self, prediction, data):
         """
@@ -62,20 +67,20 @@ class ngenLoss(nn.Module):
 
         # Mask NaNs
         mask = ~torch.isnan(y)
-        y_hat = torch.where(mask, y_hat, torch.zeros_like(y_hat))
-        y = torch.where(mask, y, torch.zeros_like(y))
+        y_hat_masked = torch.where(mask, y_hat, torch.zeros_like(y_hat))
+        y_masked = torch.where(mask, y, torch.zeros_like(y))
 
-        # MSE Loss
-        mse_loss = F.mse_loss(y_hat[mask], y[mask])
+        loss=0
+        losses = {}
 
-        loss = mse_loss
-        losses = {"mse_loss": mse_loss}
-
+        if self.residual_weight > 0:
+            residual = self._compute_residual_loss(y_hat_masked, y_masked, mask)
+            loss += self.residual_weight * residual
+            losses[f"{self.residual_loss}_loss"] = residual
         if self.variogram_weight > 0:
             vario_loss = self._variogram_loss(y_hat, y, mask)
             loss += self.variogram_weight * vario_loss
             losses["variogram_loss"] = vario_loss
-
         if self.fdc_weight > 0:
             fdc_loss = self._fdc_loss(y_hat, y, mask)
             loss += self.fdc_weight * fdc_loss
@@ -85,22 +90,74 @@ class ngenLoss(nn.Module):
 
         return loss, losses
 
-    def variogram_loss(self, y_hat, y, mask):
+    def _compute_residual_loss(self, y_hat, y, mask):
+        """
+        Compute residual loss according to selected type.
+
+        Parameters
+        ----------
+        y_hat : torch.Tensor
+            [B, T, D] predicted
+        y : torch.Tensor
+            [B, T, D] observed
+        mask : torch.Tensor
+            Boolean mask, same shape as y
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar residual loss
+        """
+
+        # Flatten only valid entries
+        y_hat_flat = y_hat[mask]
+        y_flat = y[mask]
+
+        if y_flat.numel() == 0:
+            # All missing data
+            return torch.tensor(0.0, device=y.device)
+
+        if self.residual_loss == "mse":
+            loss_value = F.mse_loss(y_hat_flat, y_flat)
+
+        elif self.residual_loss == "rmse":
+            loss_value = torch.sqrt(F.mse_loss(y_hat_flat, y_flat))
+
+        elif self.residual_loss == "nse":
+            # Nash–Sutcliffe efficiency: 1 - (SSE / variance of obs)
+            residuals = y_flat - y_hat_flat
+            sse = torch.sum(residuals ** 2)
+            variance = torch.var(y_flat, unbiased=False)
+            if variance > 0:
+                nse = 1 - (sse / (variance * y_flat.numel()))
+                # Convert to a loss: lower NSE → higher loss
+                # Clamp to avoid negative loss values
+                loss_value = torch.clamp(1.0 - nse, min=0.0)
+            else:
+                # No variability in obs → no skill, assign max loss
+                loss_value = torch.tensor(1.0, device=y.device)
+
+        else:
+            raise ValueError(f"Unknown residual loss type: {self.residualloss}")
+
+        return loss_value
+
+    def _variogram_loss(self, y_hat, y, mask):
         """
         Compute spatial variogram loss.
 
         Expects y_hat and y of shape [B, T, D=1]
         """
-
-        # Collapse time dimension → [B, D]
-        y_hat_flat = y_hat.mean(dim=1)  # mean over time
-        y_flat = y.mean(dim=1)
+        method = "quantile"
+        y_hat_flat = self.var_hyd_char(y_hat, method=method, 
+                                        random_quantile=True).squeeze(-1)
+        y_flat = self.var_hyd_char(y, method=method, 
+                                      random_quantile=True).squeeze(-1)
 
         # Compute pairwise |yi - yj|^v
         diff_obs = torch.abs(y_flat[:, None] - y_flat[None, :]) ** self.v_order
         diff_pred = torch.abs(y_hat_flat[:, None] - y_hat_flat[None, :]) ** self.v_order
 
-        # Compute squared error of differences
         loss_matrix = (diff_obs - diff_pred) ** 2
 
         if self.distance_matrix is not None:
@@ -109,7 +166,7 @@ class ngenLoss(nn.Module):
 
         return loss_matrix.mean()
 
-    def fdc_loss(self, y_hat, y, mask):
+    def _fdc_loss(self, y_hat, y, mask):
         """
         Compute FDC divergence loss.
         """
@@ -140,3 +197,57 @@ class ngenLoss(nn.Module):
         fdc_divergence = torch.clamp(fdc_divergence, min=0.0)
 
         return fdc_divergence
+
+    @staticmethod
+    def var_hyd_char(
+        ts: torch.Tensor, 
+        method: str = "mean", 
+        quantile: float = 0.25,
+        random_quantile: bool = False,
+        quantile_bounds: tuple = (0.05, 0.95)
+    ):
+        """
+        Compute a single hydrograph characteristic from time series for each basin.
+
+        Parameters
+        ----------
+        ts : torch.Tensor
+            Time series, shape [B, T, D]
+        method : str
+            Aggregation method. Options:
+                - "mean"
+                - "median"
+                - "std"
+                - "quantile"
+        quantile : float
+            If method == "quantile", the quantile level (0..1).
+        random_quantile : bool
+            Whether to randomly choose a quantile between quantile_bounds.
+        quantile_bounds : tuple(float, float)
+            Lower and upper bounds for random quantile.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape [B, D]
+        """
+
+        if method == "mean":
+            return ts.mean(dim=1)
+
+        elif method == "median":
+            return ts.median(dim=1).values
+
+        elif method == "std":
+            return ts.std(dim=1)
+
+        elif method == "quantile":
+            if random_quantile:
+                quantile = random.uniform(*quantile_bounds)
+            sorted_ts, _ = ts.sort(dim=1, descending=True)
+            index = int(quantile * ts.shape[1])
+            index = max(0, min(index, ts.shape[1] - 1))
+            return sorted_ts[:, index, :]
+        
+        else:
+            raise ValueError(f"Unknown method for hydrograph characteristic: {method}")
