@@ -5,6 +5,7 @@ from pathlib import Path
 
 from neuralngen.models.ngenlstm import NgenLSTM
 from neuralngen.dataset.hourlycamelsus import HourlyCamelsDataset
+from neuralngen.dataset.dailycamelsus import DailyCamelsDataset
 from neuralngen.training.basetrainer import BaseTrainer
 from neuralngen.utils import Config
 
@@ -22,7 +23,10 @@ def main():
     cfg = Config(Path(args.config))
 
     # Initialize dataset just once to get data shapes
-    dataset = HourlyCamelsDataset(cfg, is_train=True, period="train", do_load_scalers=False)
+    if cfg.dataset == "hourly_camels_us":
+        dataset = HourlyCamelsDataset(cfg, is_train=True, period="train", do_load_scalers=False)
+    if cfg.dataset == "daily_camels_us":
+        dataset = DailyCamelsDataset(cfg, is_train=True, period="train", do_load_scalers=False)
 
     # Sample batch
     batch = dataset[0]
@@ -39,7 +43,10 @@ def main():
     )
 
     # Plug into the trainer
-    trainer = BaseTrainer(cfg, model, HourlyCamelsDataset)
+    if cfg.dataset == "hourly_camels_us":
+        trainer = BaseTrainer(cfg, model, HourlyCamelsDataset)
+    if cfg.dataset == "daily_camels_us":
+        trainer = BaseTrainer(cfg, model, DailyCamelsDataset)
     trainer.train()
 
 

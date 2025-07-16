@@ -5,6 +5,7 @@ import torch
 import pandas as pd
 from collections import defaultdict
 from neuralngen.dataset.hourlycamelsus import HourlyCamelsDataset
+from neuralngen.dataset.dailycamelsus import DailyCamelsDataset
 from neuralngen.utils.performance_measures import nse
 from neuralngen.dataset.normalization import runoff_mmhr_to_cfs, inverse_scale
 
@@ -12,13 +13,22 @@ def validate_epoch(model, cfg, device="cpu", run_dir=None):
     model.eval()
 
     # Load validation dataset with scaling
-    dataset = HourlyCamelsDataset(
-        cfg,
-        is_train=False,
-        period="validation",
-        run_dir=run_dir,
-        do_load_scalers=True
-    )
+    if cfg.dataset == "hourly_camels_us":
+        dataset = HourlyCamelsDataset(
+            cfg,
+            is_train=False,
+            period="validation",
+            run_dir=run_dir,
+            do_load_scalers=True
+        )
+    elif cfg.dataset == "daily_camels_us":
+        dataset = DailyCamelsDataset(
+            cfg,
+            is_train=False,
+            period="validation",
+            run_dir=run_dir,
+            do_load_scalers=True
+        )
 
     # Index samples by basin
     basin_to_indices = defaultdict(list)
