@@ -123,7 +123,7 @@ class ngenLoss(nn.Module):
         elif self.residual_loss == "rmse":
             loss_value = torch.sqrt(F.mse_loss(y_hat_flat, y_flat))
 
-        elif self.residual_loss == "nse":            
+        elif self.residual_loss == "nse":
             # Nash–Sutcliffe efficiency with small eps to avoid division by zero
             # Flatten only valid entries
             residuals = y_flat - y_hat_flat
