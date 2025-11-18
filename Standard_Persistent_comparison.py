@@ -238,9 +238,9 @@ class SequentialNonOverlappingSampler(Sampler):
     def __init__(self, n_samples: int, windows_per_batch: int):
         self.n_samples = n_samples
         self.windows_per_batch = max(1, windows_per_batch)
-        self.num_batches = max(1, math.ceil(n_samples / self.windows_per_batch))
+        self.num_batches = max(1, math.ceil(n_samples / self.windows_per_batch)) #It calculates the number of batches based on how many windows there are and how many should be processed per batch.
 
-    def __iter__(self):
+    def __iter__(self):                                                          #This ensures that the LSTM is fed non-overlapping chunks of the sequence for each batch.
         for i in range(self.num_batches):
             start = i * self.windows_per_batch
             end = min(start + self.windows_per_batch, self.n_samples)
