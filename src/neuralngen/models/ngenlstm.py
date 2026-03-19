@@ -1,6 +1,6 @@
 # src/neuralngen/models/ngenlstm.py
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -69,10 +69,11 @@ class NgenLSTM(nn.Module):
     def forward(
         self,
         dynamic_inputs: torch.Tensor,
-        static_inputs: Optional[torch.Tensor] = None
+        static_inputs: Optional[torch.Tensor] = None,
+        hidden_state: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ) -> Dict[str, torch.Tensor]:
         """
-        Forward pass.
+        Forward pass with optional persistent hidden state.
 
         Parameters
         ----------
@@ -80,6 +81,9 @@ class NgenLSTM(nn.Module):
             Dynamic input features, shape [batch, seq_len, dynamic_input_size]
         static_inputs : torch.Tensor, optional
             Static input features, shape [batch, static_input_size]
+        hidden_state : tuple(torch.Tensor, torch.Tensor), optional
+            ``(h_0, c_0)`` each of shape ``[1, batch, hidden_size]``.
+            If *None* the LSTM starts from zero state (standard behaviour).
 
         Returns
         -------
@@ -88,6 +92,7 @@ class NgenLSTM(nn.Module):
             - lstm_output : hidden states, shape [batch, seq_len, hidden_size]
             - h_n : last hidden state, shape [batch, hidden_size]
             - c_n : last cell state, shape [batch, hidden_size]
+            - hidden_state : ``(h_n, c_n)`` ready to be fed back in
         """
 
         if static_inputs is not None:
@@ -98,7 +103,11 @@ class NgenLSTM(nn.Module):
         else:
             lstm_input = dynamic_inputs
 
-        lstm_out, (h_n, c_n) = self.lstm(lstm_input)
+        # LSTM forward (with or without carried hidden state)
+        if hidden_state is not None:
+            lstm_out, (h_n, c_n) = self.lstm(lstm_input, hidden_state)
+        else:
+            lstm_out, (h_n, c_n) = self.lstm(lstm_input)
 
         lstm_out = self.dropout(lstm_out)
 
@@ -109,4 +118,5 @@ class NgenLSTM(nn.Module):
             "lstm_output": lstm_out,
             "h_n": h_n.transpose(0, 1),  # [batch, 1, hidden_size]
             "c_n": c_n.transpose(0, 1),
+            "hidden_state": (h_n, c_n),  # ready to pass back in
         }
