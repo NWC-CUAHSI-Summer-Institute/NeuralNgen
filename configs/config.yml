@@ -34,3 +34,4 @@ static_attributes:
   - slope_mean
 target_variables:
   - QObs(mm/d) # QObs(mm/h)
+persistent_state: false  # Set to true for chronological batching + hidden state carryover
