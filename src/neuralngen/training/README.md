@@ -1,6 +1,6 @@
 # Training the model
 
-## Persistent Training (Majid's Approach)
+## Persistent Training 
 
 Set `persistent_state: true` in your config to enable persistent LSTM training.
 
@@ -19,4 +19,4 @@ Standard training randomizes batch order and resets hidden state each batch. Thi
 
 ### Reference
 
-Based on [Majid's neuralhydrology-persistent](https://github.com/majid828/neuralhydrology-persistent/blob/master/neuralhydrology/training/basetrainer.py).
+Based on [ neuralhydrology-persistent](https://github.com/majid828/neuralhydrology-persistent/blob/master/neuralhydrology/training/basetrainer.py).
