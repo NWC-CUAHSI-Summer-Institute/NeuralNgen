@@ -1,0 +1,37 @@
+experiment_name: refactor_test
+seed: 101
+train_basin_file: ./configs/train_basins.txt
+validation_basin_file: ./configs/train_basins.txt
+test_basin_file: ./configs/test_basins.txt
+train_start_date: "05/05/1995"
+train_end_date: "09/09/1999"
+validation_start_date: "05/05/1995"
+validation_end_date: "09/09/1999"
+test_start_date: "01/10/1998"
+test_end_date: "01/12/1998"
+clip_gradient_norm: 1
+sequence_length: 64
+device: mps
+epochs: 2
+hidden_size: 64
+learning_rate: 0.0001
+batch_sites: 3
+epoch_coverage_factor: 1
+batch_timesteps: 64
+variogram_weight: 0
+fdc_weight: 0
+residual_weight: 1
+residual_loss: "nse"
+output_dir: ./runs
+dataset: daily_camels_us
+data_dir: /Users/sonalivyas/datasets/CAMELS_US/
+forcings: nldas
+dynamic_inputs:
+-  PRCP(mm/day)
+-  SRAD(W/m2)
+static_attributes:
+  - elev_mean
+  - slope_mean
+target_variables:
+  - QObs(mm/d)
+persistent_state: false
