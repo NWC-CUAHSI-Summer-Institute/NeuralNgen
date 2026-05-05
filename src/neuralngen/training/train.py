@@ -7,6 +7,7 @@ from neuralngen.models.ngenlstm import NgenLSTM
 from neuralngen.dataset.hourlycamelsus import HourlyCamelsDataset
 from neuralngen.dataset.dailycamelsus import DailyCamelsDataset
 from neuralngen.training.basetrainer import BaseTrainer
+from neuralngen.training.persistent_trainer import PersistentTrainer
 from neuralngen.utils import Config
 
 def main():
@@ -42,11 +43,13 @@ def main():
         output_size=y.shape[-1],
     )
 
-    # Plug into the trainer
+    # Select trainer strategy based on config
+    TrainerClass = PersistentTrainer if getattr(cfg, "persistent_state", False) else BaseTrainer
+
     if cfg.dataset == "hourly_camels_us":
-        trainer = BaseTrainer(cfg, model, HourlyCamelsDataset)
+        trainer = TrainerClass(cfg, model, HourlyCamelsDataset)
     if cfg.dataset == "daily_camels_us":
-        trainer = BaseTrainer(cfg, model, DailyCamelsDataset)
+        trainer = TrainerClass(cfg, model, DailyCamelsDataset)
     trainer.train()
 
 
