@@ -16,7 +16,16 @@ from neuralngen.validate.epoch_validation import validate_epoch
 
 
 class BaseTrainer:
-    """Standard trainer with random-shuffle batching (no hidden-state carryover)."""
+    """Core training scaffold for NeuralNgen models.
+
+    Handles common training infrastructure: model and device setup, dataset
+    initialization, optimizer configuration, checkpointing, and the
+    train/validate loop. Subclasses can override ``_train_epoch()`` to
+    implement alternative training strategies (e.g., chronological
+    batching with hidden-state carryover).
+
+    The default ``_train_epoch()`` uses random-shuffle batching.
+    """
 
     def __init__(self, cfg, model, dataset_class):
         self.cfg = cfg
