@@ -13,7 +13,6 @@ import torch
 from src.dataset.multi_gauge_batcher import GaugeHandle
 from src.models.catchment_lstm import CatchmentLSTM
 
-TEST_START = "2022-01-01"
 CHUNK_SIZE = 2000
 
 
@@ -60,6 +59,9 @@ def evaluate(cfg: dict):
     dyn_mean, dyn_std = ckpt["dyn_mean"].to(device), ckpt["dyn_std"].to(device)
     stat_mean, stat_std = ckpt["stat_mean"].to(device), ckpt["stat_std"].to(device)
 
+    test_start = pd.Timestamp(cfg["test_start_date"])
+    test_end = pd.Timestamp(cfg["test_end_date"])
+
     basin_ids = [line.strip() for line in open(cfg["basin_file"]) if line.strip()]
 
     results = []
@@ -73,7 +75,7 @@ def evaluate(cfg: dict):
             results.append({"gauge_id": gid, "NSE": np.nan, "KGE": np.nan, "error": str(e)})
             continue
 
-        test_mask = handle.time_index >= pd.Timestamp(TEST_START)
+        test_mask = (handle.time_index >= test_start) & (handle.time_index < test_end)
         test_idx = np.where(test_mask)[0]
         if len(test_idx) == 0:
             results.append({"gauge_id": gid, "NSE": np.nan, "KGE": np.nan, "error": "no test period"})
@@ -91,7 +93,7 @@ def evaluate(cfg: dict):
                 end = min(start + CHUNK_SIZE, dyn_norm.shape[1])
                 pred_chunk, _ = model(dyn_norm[:, start:end, :], static_norm)
                 preds_chunks.append(pred_chunk.cpu().numpy())
-        pred_norm = np.concatenate(preds_chunks, axis=1)  # (n_catchments, T_test)
+        pred_norm = np.concatenate(preds_chunks, axis=1)
 
         q_mean, q_std = ckpt["q_stats"][gid]
         pred_physical = pred_norm * q_std + q_mean
