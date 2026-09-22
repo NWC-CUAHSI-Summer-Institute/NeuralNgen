@@ -1,14 +1,14 @@
 """
 Multi-gauge training loop for CatchmentLSTM using strictly-proper
 scoring-rule losses (FDC/RFL divergence) plus an optional timing-aware
-pointwise MSE term, with cluster-proportional gauge batching and
-area-weighted aggregation to gauge scale (matching how t-route physically
-sums catchment outputs downstream).
+pointwise MSE term, with cluster-proportional gauge batching, area-weighted
+aggregation to gauge scale, and a date-based train/test split.
 """
 
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 
 from src.dataset.multi_gauge_batcher import GaugeHandle, MultiGaugeBatcher
@@ -17,8 +17,6 @@ from src.losses.scoring_rules import fdc_divergence, rfl_divergence, pointwise_m
 
 
 def compute_global_stats(handles):
-    """Global dyn_mean/std and stat_mean/std across all gauges' catchments,
-    for input normalization."""
     all_dyn = [h._dyn.reshape(-1, h._dyn.shape[-1]) for h in handles.values()]
     all_stat = [h.static for h in handles.values()]
     all_dyn = np.concatenate(all_dyn, axis=0)
@@ -31,11 +29,12 @@ def compute_global_stats(handles):
     return dyn_mean, dyn_std, stat_mean, stat_std
 
 
-def compute_q_stats(handles):
-    """Per-gauge (mean, std) of observed streamflow, for output normalization."""
+def compute_q_stats(handles, train_start, train_end):
+    """Per-gauge (mean, std) of observed streamflow over the TRAIN window only."""
     q_stats = {}
     for gid, h in handles.items():
-        obs = h.q_obs.values
+        mask = (h.time_index >= train_start) & (h.time_index < train_end)
+        obs = h.q_obs.values[mask]
         obs = obs[~np.isnan(obs)]
         mean = float(np.mean(obs)) if len(obs) else 0.0
         std = float(np.std(obs)) if len(obs) else 1.0
@@ -61,30 +60,41 @@ def train(cfg: dict):
             print(f"  skipping {gid}: {e}")
     print(f"Loaded {len(handles)} / {len(basin_ids)} gauges.")
 
+    train_start = pd.Timestamp(cfg["train_start_date"])
+    train_end = pd.Timestamp(cfg["train_end_date"])
+
     dyn_mean, dyn_std, stat_mean, stat_std = compute_global_stats(handles)
-    q_stats = compute_q_stats(handles)
-    batcher = MultiGaugeBatcher(handles, cfg["clusters_csv"], exclude_singleton_clusters=True)
+    q_stats = compute_q_stats(handles, train_start, train_end)
+    batcher = MultiGaugeBatcher(handles, cfg["clusters_file"], exclude_singleton_clusters=True)
 
     model = CatchmentLSTM(
         dynamic_size=len(dynamic_inputs),
         static_size=len(static_attributes),
         hidden_size=cfg.get("hidden_size", 64),
         num_layers=cfg.get("num_layers", 2),
+        dropout=cfg.get("dropout", 0.0),
     ).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.get("lr", 1e-3))
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.get("learning_rate", 1e-3))
 
     loss_type = cfg.get("loss_type", "both")       # "fdc", "rfl", "both"
-    rfl_weight = cfg.get("rfl_weight", 100.0)       # corrected calibration (was 16.0)
+    rfl_weight = cfg.get("rfl_weight", 100.0)
     pointwise_weight = cfg.get("pointwise_weight", 0.0)
 
-    seq_len = cfg.get("seq_len", 336)
-    batch_gauges = cfg.get("batch_gauges", 8)
+    seq_len = cfg.get("batch_window_hours", 336)
+    batch_gauges = cfg.get("spatial_length", 8)
     num_epochs = cfg.get("num_epochs", 50)
     steps_per_epoch = cfg.get("steps_per_epoch", 300)
     rng = np.random.default_rng(cfg.get("seed", 0))
 
     dyn_mean_d, dyn_std_d = dyn_mean.to(device), dyn_std.to(device)
     stat_mean_d, stat_std_d = stat_mean.to(device), stat_std.to(device)
+
+    # per-gauge valid start-index range restricted to the TRAIN window only
+    train_ranges = {}
+    for gid, h in handles.items():
+        idx = np.where((h.time_index >= train_start) & (h.time_index < train_end))[0]
+        if len(idx) > seq_len:
+            train_ranges[gid] = (int(idx.min()), int(idx.max()) - seq_len)
 
     run_dir = Path(cfg["run_dir"])
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -94,17 +104,17 @@ def train(cfg: dict):
         epoch_loss = 0.0
 
         for step in range(steps_per_epoch):
-            gauge_ids = batcher.select_batch_gauges(batch_gauges, rng)
+            gauge_ids = [g for g in batcher.select_batch_gauges(batch_gauges, rng) if g in train_ranges]
             optimizer.zero_grad()
             step_loss = torch.tensor(0.0, device=device)
             n_valid = 0
 
             for gid in gauge_ids:
                 handle = handles[gid]
-                max_start = len(handle.time_index) - seq_len
-                if max_start <= 0:
+                lo, hi = train_ranges[gid]
+                if hi <= lo:
                     continue
-                start_idx = int(rng.integers(0, max_start))
+                start_idx = int(rng.integers(lo, hi))
                 dyn, obs = handle.get_window(start_idx, start_idx + seq_len)
 
                 dyn_t = torch.as_tensor(dyn, dtype=torch.float32, device=device)
