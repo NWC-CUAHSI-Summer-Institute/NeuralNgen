@@ -1,0 +1,71 @@
+gauges_root: /bighome/hdagne1/Docker/Data/CAMELS_US_ngiab_full
+streamflow_dir: /bighome/hdagne1/Docker/Data/CAMELS_US/hourly/usgs_streamflow
+basin_file: basin_lists/ready_basins_filtered.txt
+clusters_file: basin_lists/hydro_clusters.csv
+
+dynamic_inputs:
+  - APCP_surface
+  - DLWRF_surface
+  - DSWRF_surface
+  - PRES_surface
+  - SPFH_2maboveground
+  - TMP_2maboveground
+  - UGRD_10maboveground
+  - VGRD_10maboveground
+
+static_attributes:
+  - mode.bexp_soil_layers_stag=1
+  - mode.bexp_soil_layers_stag=2
+  - mode.bexp_soil_layers_stag=3
+  - mode.bexp_soil_layers_stag=4
+  - geom_mean.dksat_soil_layers_stag=1
+  - geom_mean.dksat_soil_layers_stag=2
+  - geom_mean.dksat_soil_layers_stag=3
+  - geom_mean.dksat_soil_layers_stag=4
+  - geom_mean.psisat_soil_layers_stag=1
+  - geom_mean.psisat_soil_layers_stag=2
+  - geom_mean.psisat_soil_layers_stag=3
+  - geom_mean.psisat_soil_layers_stag=4
+  - mean.cwpvt
+  - mean.mfsno
+  - mean.mp
+  - mean.refkdt
+  - mean.slope_1km
+  - mean.smcmax_soil_layers_stag=1
+  - mean.smcmax_soil_layers_stag=2
+  - mean.smcmax_soil_layers_stag=3
+  - mean.smcmax_soil_layers_stag=4
+  - mean.smcwlt_soil_layers_stag=1
+  - mean.smcwlt_soil_layers_stag=2
+  - mean.smcwlt_soil_layers_stag=3
+  - mean.smcwlt_soil_layers_stag=4
+  - mean.vcmx25
+  - mean.Coeff
+  - mean.Zmax
+  - mode.Expon
+  - mean.impervious
+  - mean.elevation
+  - mean.slope
+  - circ_mean.aspect
+
+train_start_date: "2020-01-01"
+train_end_date: "2022-01-01"
+test_start_date: "2022-01-01"
+test_end_date: "2024-12-31"
+
+loss_type: both
+rfl_weight: 100.0
+pointwise_weight: 0.25
+
+hidden_size: 64
+num_layers: 2
+dropout: 0.2
+learning_rate: 0.001
+
+num_epochs: 200
+batch_window_hours: 336
+spatial_length: 8
+steps_per_epoch: 600
+seed: 42
+experiment_name: scoring_rule_multi
+run_dir_base: runs
