@@ -6,7 +6,7 @@ from typing import Tuple
 import pandas as pd
 import numpy as np
 
-from neuralngen.dataset.camelsus import CamelsUS
+from NeuralNGEN.src.neuralngen.dataset.camelsus import CamelsUS
 
 
 class DailyCamelsDataset(CamelsUS):

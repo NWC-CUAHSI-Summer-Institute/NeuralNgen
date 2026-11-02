@@ -1,0 +1,38 @@
+train_cfg_file: /ngen/NeuralNGEN/runs/scoring_rule_multi_fdc/model_final.pt
+gauge_id: '02013000'
+area_sqkm: 4.7780588618172715
+gauge_area_sqkm: 408.0696750341909
+static_attributes:
+  mode.bexp_soil_layers_stag=1: 8.954740524291992
+  mode.bexp_soil_layers_stag=2: 8.954740524291992
+  mode.bexp_soil_layers_stag=3: 8.954740524291992
+  mode.bexp_soil_layers_stag=4: 8.954740524291992
+  geom_mean.dksat_soil_layers_stag=1: 1.1023681812158758e-06
+  geom_mean.dksat_soil_layers_stag=2: 1.1023681812158758e-06
+  geom_mean.dksat_soil_layers_stag=3: 1.1023681812158758e-06
+  geom_mean.dksat_soil_layers_stag=4: 1.1023681812158758e-06
+  geom_mean.psisat_soil_layers_stag=1: 0.014810242283222641
+  geom_mean.psisat_soil_layers_stag=2: 0.014810242283222641
+  geom_mean.psisat_soil_layers_stag=3: 0.014810242283222641
+  geom_mean.psisat_soil_layers_stag=4: 0.014810242283222641
+  mean.cwpvt: 0.28188037872314453
+  mean.mfsno: 3.934880018234253
+  mean.mp: 10.462301254272461
+  mean.refkdt: 2.0
+  mean.slope_1km: 0.18137389421463013
+  mean.smcmax_soil_layers_stag=1: 0.44766485691070557
+  mean.smcmax_soil_layers_stag=2: 0.44766485691070557
+  mean.smcmax_soil_layers_stag=3: 0.44766485691070557
+  mean.smcmax_soil_layers_stag=4: 0.44766485691070557
+  mean.smcwlt_soil_layers_stag=1: 0.054801084101200104
+  mean.smcwlt_soil_layers_stag=2: 0.054801084101200104
+  mean.smcwlt_soil_layers_stag=3: 0.054801084101200104
+  mean.smcwlt_soil_layers_stag=4: 0.054801084101200104
+  mean.vcmx25: 67.296142578125
+  mean.Coeff: 0.005
+  mean.Zmax: 248.67172
+  mode.Expon: 2.0
+  mean.impervious: 0.0
+  mean.elevation: 81015.88762321143
+  mean.slope: 87.43887186293608
+  circ_mean.aspect: 184.3227252221287

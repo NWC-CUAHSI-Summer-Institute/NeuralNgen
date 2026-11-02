@@ -1,0 +1,18 @@
+# Read by run_ngen_scenario.py. Fill in the three paths below.
+
+# Parent directory containing all gage-<ID>/ folders (config/, forcings/,
+# bmi_config_files_<scenario>/, outputs/) - what build_scaled_configs.py
+# was pointed at as its first CLI argument.
+gauges_root: /bighome/hdagne1/Data/CAMELS_US_ngiab_full
+
+# Root of this repo - bind-mounted into the container at /ngen/NeuralNGEN
+# and put on PYTHONPATH there, so "import src.models.bmi_catchmentlstm"
+# resolves inside apptainer. Must be the directory that directly contains
+# src/models/catchment_lstm.py etc.
+neuralngen_root: /bighome/hdagne1/NeuralNGEN
+
+# Path to the ngen Apptainer/Singularity image (.sif file) providing
+# /dmod/bin/ngen-serial. FIXED: was pointed at containers/ngen.sif, which
+# doesn't exist - this is the actual image verified working end-to-end
+# (LSTM + t-route routing, gauge 01013500) throughout today's debugging.
+ngen_sif: /bighome/hdagne1/Docker/ciroh-ngen-image.sif
